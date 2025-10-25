@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { geminiService } from '../services/geminiService';
 import { fileToText } from '../utils/fileUtils';
 import { LoadingSpinner, UploadIcon, TrashIcon, BrainIcon } from './icons/Icons';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface KnowledgeFile {
   file: File;
@@ -83,27 +83,6 @@ export const KnowledgeStore: React.FC = () => {
             setIsLoading(false);
         }
     };
-    
-    // Simple markdown to HTML for code blocks to be picked up by highlight.js
-    const renderMarkdown = (text: string) => {
-        const html = text
-            .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-                const language = lang || 'plaintext';
-                const escapedCode = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                return `<pre><code class="language-${language}">${escapedCode.trim()}</code></pre>`;
-            })
-            .replace(/`([^`]+)`/g, '<code>$1</code>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-            .replace(/^- (.*$)/gim, '<ul><li>$1</li></ul>')
-            .replace(/<\/ul>\s*<ul>/g, '')
-            .replace(/\n/g, '<br />');
-
-        return { __html: html };
-    };
 
     return (
         <div className="bg-rh-medium-gray p-6 rounded-lg shadow-xl">
@@ -172,10 +151,9 @@ export const KnowledgeStore: React.FC = () => {
                     <h3 className="text-xl font-bold text-gray-200 mb-4">Generated Content</h3>
                     {isLoading && !generatedContent && <div className="flex justify-center"><LoadingSpinner/></div>}
                     {generatedContent && (
-                        <div 
-                            className="p-4 bg-rh-dark-gray rounded-md prose prose-invert max-w-none prose-h1:text-rh-red prose-h2:text-rh-accent prose-pre:bg-rh-medium-gray prose-code:text-rh-text"
-                            dangerouslySetInnerHTML={renderMarkdown(generatedContent)}
-                        />
+                        <div className="p-4 bg-rh-dark-gray rounded-md">
+                           <MarkdownRenderer content={generatedContent} />
+                        </div>
                     )}
                 </div>
             )}

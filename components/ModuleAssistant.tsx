@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import type { CurriculumTopic } from '../types';
 import { geminiService } from '../services/geminiService';
 import { BrainIcon, LightbulbIcon, CheckSquareIcon, LoadingSpinner } from './icons/Icons';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ModuleAssistantProps {
   topic: CurriculumTopic;
@@ -84,70 +84,7 @@ export const ModuleAssistant: React.FC<ModuleAssistantProps> = ({ topic, onAddTa
       return <p className="text-gray-400 text-center italic">Select an action above to get started.</p>;
     }
     if (typeof response === 'string') {
-        const renderMarkdown = (text: string) => {
-            let processedText = text;
-
-            // 1. Placeholder for code blocks to protect them.
-            const codeBlocks: { [key: string]: string } = {};
-            let codeBlockId = 0;
-            processedText = processedText.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-                const placeholder = `__CODEBLOCK_${codeBlockId++}__`;
-                const language = lang || 'plaintext';
-                const escapedCode = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                codeBlocks[placeholder] = `<pre><code class="language-${language}">${escapedCode.trim()}</code></pre>`;
-                return placeholder;
-            });
-
-            // 2. Handle callouts
-            processedText = processedText.replace(/^> \[!(note|tip|info|example|warning)\]- \*\*(.*?)\*\*\n?((?:^> .*\n?)*)/gm, (match, type, title, content) => {
-                const calloutClass = `callout-${type}`;
-                const cleanedContent = content.replace(/^> ?/gm, '');
-                
-                const innerHtml = cleanedContent.trim()
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/`([^`]+)`/g, '<code>$1</code>')
-                    .replace(/\n/g, '<br />');
-
-                return `<div class="not-prose callout ${calloutClass}"><strong class="callout-title">${title}</strong><div>${innerHtml}</div></div>`;
-            });
-
-            // 3. Process remaining content block by block
-            const blocks = processedText.trim().split(/\n\s*\n/);
-            processedText = blocks.map(block => {
-                if (Object.keys(codeBlocks).some(key => block.trim() === key)) {
-                    return block;
-                }
-                
-                // Process lists
-                if (block.match(/^\s*(\*|-|\d+\.)/)) {
-                    const lines = block.split('\n');
-                    const listItems = lines.map(line => `<li>${line.replace(/^\s*(\*|-|\d+\.)\s*/, '')}</li>`).join('');
-                    const listType = (block.trim().startsWith('*') || block.trim().startsWith('-')) ? 'ul' : 'ol';
-                    return `<${listType}>${listItems}</${listType}>`;
-                }
-                
-                // Process paragraphs
-                if (block) {
-                     return `<p>${block}</p>`;
-                }
-                return '';
-            }).join('');
-
-            // 4. Process inline styling and line breaks within paragraphs
-            processedText = processedText
-              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-              .replace(/`([^`]+)`/g, '<code>$1</code>')
-              .replace(/<p>(.*?)<\/p>/g, (match, content) => `<p>${content.replace(/\n/g, '<br />')}</p>`);
-
-            // 5. Restore code blocks
-            for (const key in codeBlocks) {
-                processedText = processedText.replace(key, codeBlocks[key]);
-            }
-            
-            return processedText;
-        };
-
-      return <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: renderMarkdown(response) }} />;
+        return <MarkdownRenderer content={response} />;
     }
     if (Array.isArray(response)) {
       return (

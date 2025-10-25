@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { geminiService } from '../services/geminiService';
 import { CloseIcon, TargetIcon, LoadingSpinner, BrainIcon } from './icons/Icons';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ObjectiveAssistantModalProps {
   isOpen: boolean;
@@ -59,33 +59,6 @@ export const ObjectiveAssistantModal: React.FC<ObjectiveAssistantModalProps> = (
       setIsLoading(false);
     }
   };
-  
-    const renderMarkdown = (text: string) => {
-        let processedText = text;
-        
-        const codeBlocks: string[] = [];
-        processedText = processedText.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-            const placeholder = `__CODEBLOCK_${codeBlocks.length}__`;
-            const language = lang || 'plaintext';
-            const escapedCode = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            codeBlocks.push(`<pre class="bg-rh-dark-gray p-4 rounded-md"><code class="language-${language}">${escapedCode.trim()}</code></pre>`);
-            return placeholder;
-        });
-        
-        processedText = processedText.replace(/^> \[!(note|tip|info|example|warning)\]- \*\*(.*?)\*\*\n?((?:> .*\n?)*)/gm, (match, type, title, content) => {
-            const calloutClass = `callout-${type}`;
-            const cleanedContent = content.replace(/^> /gm, '').replace(/^>/gm, '');
-            return `<div class="not-prose callout ${calloutClass}"><strong class="callout-title">${title}</strong><div>${cleanedContent.replace(/\n/g, '<br />')}</div></div>`;
-        });
-        
-        processedText = processedText.replace(/\n/g, '<br />');
-
-        processedText = processedText.replace(/__CODEBLOCK_(\d+)__/g, (match, index) => {
-            return codeBlocks[parseInt(index, 10)] || '';
-        });
-
-        return { __html: processedText };
-    };
 
   if (!isOpen) {
     return null;
@@ -127,7 +100,7 @@ export const ObjectiveAssistantModal: React.FC<ObjectiveAssistantModalProps> = (
           {error && <p className="text-red-400 text-center">{error}</p>}
 
           {response && (
-             <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={renderMarkdown(response)} />
+             <MarkdownRenderer content={response} />
           )}
         </main>
       </div>
