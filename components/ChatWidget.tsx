@@ -1,18 +1,20 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality, Blob, Chat } from '@google/genai';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 // Fix: Import Curriculum from '../data/curriculumData' instead of '../types'
 import type { ChatMessage } from '../types';
 import type { Curriculum } from '../data/curriculumData';
 import { geminiService } from '../services/geminiService';
 import { encode, decode, decodeAudioData } from '../utils/audioUtils';
-import { BrainIcon, SearchIcon, MicIcon, SendIcon, ChatIcon, CloseIcon, LoadingSpinner, StopIcon } from './icons/Icons';
+import { BrainIcon, SearchIcon, MicIcon, SendIcon, ChatIcon, CloseIcon, LoadingSpinner, StopIcon, CodeIcon, BugIcon } from './icons/Icons';
 
 interface ChatWidgetProps {
   curriculum: Curriculum[];
 }
 
-type ChatMode = 'chat' | 'thinking' | 'grounded' | 'live';
+type ChatMode = 'chat' | 'thinking' | 'grounded' | 'live' | 'code' | 'debug';
 
 export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -33,6 +35,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
 
   const chat = useRef<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen && !chat.current) {
@@ -45,6 +48,11 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if ((window as any).hljs && chatContainerRef.current) {
+        chatContainerRef.current.querySelectorAll('pre code').forEach((block) => {
+            (window as any).hljs.highlightElement(block);
+        });
+    }
   }, [messages]);
 
   const sendMessage = async () => {
@@ -63,6 +71,10 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
         const result = await geminiService.askWithGrounding(input);
         responseText = result.text;
         sources = result.sources;
+      } else if (mode === 'code') {
+        responseText = await geminiService.generateCode(input);
+      } else if (mode === 'debug') {
+        responseText = await geminiService.debugCode(input);
       } else {
         if (!chat.current) throw new Error("Chat not initialized");
         responseText = await geminiService.getChatResponse(chat.current, input);
@@ -183,6 +195,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
     thinking: { text: "Complex problem solving with Gemini 2.5 Pro.", icon: <BrainIcon />},
     grounded: { text: "Answers grounded in Google Search for current events.", icon: <SearchIcon />},
     live: { text: "Live voice conversation with an AI tutor.", icon: <MicIcon /> },
+    code: { text: "Generate code snippets based on your requirements.", icon: <CodeIcon /> },
+    debug: { text: "Get help debugging your code.", icon: <BugIcon /> },
   }
 
   if (!isOpen) {
@@ -203,8 +217,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
       </header>
       
       <div className="p-2 border-b border-rh-light-gray text-center bg-rh-medium-gray">
-          <div className="flex justify-center space-x-2">
-            {(['chat', 'thinking', 'grounded', 'live'] as ChatMode[]).map(m => (
+          <div className="flex justify-center space-x-1 sm:space-x-2">
+            {(['chat', 'thinking', 'grounded', 'live', 'code', 'debug'] as ChatMode[]).map(m => (
                 <button key={m} onClick={() => handleModeChange(m)} className={`p-2 rounded-full transition-colors ${ (mode === m && m !== 'live') || (m === 'live' && isLive) ? 'bg-rh-red' : 'bg-rh-light-gray hover:bg-rh-red/70'}`} title={modeInfo[m].text}>
                     { (m === 'live' && isLive) ? <StopIcon /> : modeInfo[m].icon }
                 </button>
@@ -213,11 +227,28 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
           <p className="text-xs text-gray-400 mt-1.5">{modeInfo[mode].text}</p>
       </div>
 
-      <div className="flex-1 p-4 overflow-y-auto space-y-4">
+      <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4">
         {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-lg ${msg.sender === 'user' ? 'bg-rh-accent text-white' : 'bg-rh-light-gray text-rh-text'}`}>
-              <p className="whitespace-pre-wrap">{msg.text}</p>
+              {msg.sender === 'bot' ? (
+                 <ReactMarkdown
+                    children={msg.text}
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                        p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                        pre: ({node, ...props}) => <pre className="bg-rh-dark-gray p-2 rounded my-2 overflow-x-auto text-sm" {...props} />,
+                        code: ({node, inline, className, children, ...props}) => {
+                            return <code className={`${className} rounded`} {...props}>{children}</code>
+                        },
+                        a: ({node, ...props}) => <a className="text-rh-accent hover:underline" {...props} />,
+                        ul: ({node, ...props}) => <ul className="list-disc list-inside my-2" {...props} />,
+                        ol: ({node, ...props}) => <ol className="list-decimal list-inside my-2" {...props} />,
+                    }}
+                />
+              ) : (
+                <p className="whitespace-pre-wrap">{msg.text}</p>
+              )}
               {msg.sources && msg.sources.length > 0 && (
                 <div className="mt-2 border-t border-rh-medium-gray pt-2">
                   <h4 className="text-xs font-bold mb-1">Sources:</h4>

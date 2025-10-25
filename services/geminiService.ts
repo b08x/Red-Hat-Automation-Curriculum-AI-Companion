@@ -222,6 +222,39 @@ ${moduleContent}
     return response.text;
   }
 
+  async generateCode(prompt: string): Promise<string> {
+    const systemInstruction = `You are an expert code generation assistant. Your primary goal is to provide clean, efficient, and well-commented code based on the user's request. 
+- Always wrap code in appropriate Markdown code blocks with the language specified (e.g., \`\`\`python).
+- If a language is not specified, make a reasonable assumption based on the context.
+- Provide a brief explanation of how the code works.`;
+    
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-pro',
+      contents: prompt,
+      config: {
+        systemInstruction,
+      },
+    });
+    return response.text;
+  }
+
+  async debugCode(prompt: string): Promise<string> {
+    const systemInstruction = `You are an expert debugging assistant. A user will provide you with a code snippet and a description of a problem.
+- Your task is to identify the bug or error.
+- Explain the root cause of the problem in a clear and understandable way.
+- Provide a corrected version of the code inside a Markdown code block.
+- If necessary, suggest alternative approaches or best practices to avoid similar issues in the future.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-pro',
+      contents: prompt,
+      config: {
+        systemInstruction,
+      },
+    });
+    return response.text;
+  }
+
 }
 
 export const geminiService = new GeminiService();
