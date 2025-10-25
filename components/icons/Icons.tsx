@@ -33,6 +33,8 @@ export const DatabaseIcon = () => <Icon><ellipse cx="12" cy="5" rx="9" ry="3" />
 export const UploadIcon = () => <Icon><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></Icon>;
 export const LightbulbIcon = () => <Icon><path d="M15.09 16.5c.34-.59.51-1.26.51-1.97C15.6 12.03 14 11 12 11s-3.6 1.03-3.6 3.53c0 .71.17 1.38.51 1.97" /><path d="M12 2a7 7 0 0 0-7 7c0 2.35 1.25 4.37 3.09 5.5" /><path d="M8.5 17a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.5v1Z" /><path d="M12 21.5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5Z" /></Icon>;
 export const CheckSquareIcon = () => <Icon><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></Icon>;
+export const TargetIcon = () => <Icon><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></Icon>;
+export const DownloadIcon = () => <Icon width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></Icon>;
 export const LoadingSpinner = () => (
     <div className="flex items-center space-x-2">
       <div className="w-2 h-2 rounded-full bg-rh-accent animate-pulse"></div>

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import type { CurriculumPart } from '../types';
+import { InteractiveTable } from '../components/KanbanColumn';
 
 export type Curriculum = CurriculumPart;
 
@@ -194,42 +195,15 @@ export const curriculumData: Curriculum[] = [
         modules: [
             {
                 title: "Tooling Comparison",
-                content: React.createElement("div", {className: "overflow-x-auto"},
-                  React.createElement("table", {className: "min-w-full divide-y divide-rh-light-gray bg-rh-medium-gray rounded-lg"},
-                    React.createElement("thead", {className: "bg-rh-light-gray"},
-                      React.createElement("tr", null,
-                        React.createElement("th", {scope: "col", className: "px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"}, "Tool"),
-                        React.createElement("th", {scope: "col", className: "px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"}, "Primary Scope"),
-                        React.createElement("th", {scope: "col", className: "px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"}, "Operational Paradigm"),
-                        React.createElement("th", {scope: "col", className: "px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"}, "Core Use Case"),
-                        React.createElement("th", {scope: "col", className: "px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"}, "Analogy"),
-                      )
-                    ),
-                    React.createElement("tbody", {className: "divide-y divide-rh-light-gray"},
-                        React.createElement("tr", null, 
-                            React.createElement("td", {className: "px-6 py-4"}, "Ansible"),
-                            React.createElement("td", {className: "px-6 py-4"}, "Multi-host Orchestration"),
-                            React.createElement("td", {className: "px-6 py-4"}, "Declarative (Code)"),
-                            React.createElement("td", {className: "px-6 py-4"}, "Automated provisioning & configuration"),
-                            React.createElement("td", {className: "px-6 py-4"}, "The Architect's Blueprints"),
-                        ),
-                        React.createElement("tr", null, 
-                            React.createElement("td", {className: "px-6 py-4"}, "Cockpit"),
-                            React.createElement("td", {className: "px-6 py-4"}, "Single-Host Inspection"),
-                            React.createElement("td", {className: "px-6 py-4"}, "Interactive (GUI)"),
-                            React.createElement("td", {className: "px-6 py-4"}, "Real-time troubleshooting & admin"),
-                            React.createElement("td", {className: "px-6 py-4"}, "The Mechanic's Dashboard"),
-                        ),
-                        React.createElement("tr", null, 
-                            React.createElement("td", {className: "px-6 py-4"}, "Foreman/Katello"),
-                            React.createElement("td", {className: "px-6 py-4"}, "Fleet & Content Lifecycle"),
-                            React.createElement("td", {className: "px-6 py-4"}, "Stateful (Database)"),
-                            React.createElement("td", {className: "px-6 py-4"}, "Patch/errata management & compliance"),
-                            React.createElement("td", {className: "px-6 py-4"}, "The Fleet Manager's Logistics System"),
-                        ),
-                    )
-                  )
-                )
+                content: React.createElement(InteractiveTable, {
+                  headers: ["Tool", "Primary Scope", "Operational Paradigm", "Core Use Case", "Analogy"],
+                  rows: [
+                      ["Ansible", "Multi-host Orchestration", "Declarative (Code)", "Automated provisioning & configuration", "The Architect's Blueprints"],
+                      ["Cockpit", "Single-Host Inspection", "Interactive (GUI)", "Real-time troubleshooting & admin", "The Mechanic's Dashboard"],
+                      ["Foreman/Katello", "Fleet & Content Lifecycle", "Stateful (Database)", "Patch/errata management & compliance", "The Fleet Manager's Logistics System"],
+                  ],
+                  fileName: "tooling-comparison.csv"
+              })
             }
         ]
     }

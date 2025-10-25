@@ -2,19 +2,37 @@
 import React from 'react';
 import type { CurriculumPart, CurriculumTopic, RelatedTopicLink } from '../types';
 import { ModuleAssistant } from './ModuleAssistant';
+import { TargetIcon } from './icons/Icons';
+import { InteractiveTable } from './KanbanColumn';
 
 interface ContentViewProps {
   topic: CurriculumPart | CurriculumTopic;
   onSelectTopic: (partTitle: string, topicTitle: string) => void;
   onAddTaskToBoard: (task: { title: string; description: string }) => void;
+  onOpenObjectiveModal: (data: { category: string; moduleTitle: string; moduleContent: any; }) => void;
 }
 
 const isCurriculumPart = (topic: any): topic is CurriculumPart => {
   return 'description' in topic;
 };
 
-export const ContentView: React.FC<ContentViewProps> = ({ topic, onSelectTopic, onAddTaskToBoard }) => {
+export const ContentView: React.FC<ContentViewProps> = ({ topic, onSelectTopic, onAddTaskToBoard, onOpenObjectiveModal }) => {
   if (isCurriculumPart(topic)) {
+    
+    const handleIterateClick = (objectiveItem: { category: string; module: string; }) => {
+        const targetModule = topic.modules?.find(m => m.title === objectiveItem.module);
+        if (targetModule) {
+            const content = typeof targetModule.content === 'string' ? targetModule.content : 'This module contains complex, non-text content.';
+            onOpenObjectiveModal({
+                category: objectiveItem.category,
+                moduleTitle: objectiveItem.module,
+                moduleContent: content,
+            });
+        } else {
+            alert(`Could not find content for module: ${objectiveItem.module}`);
+        }
+    };
+
     return (
       <div className="prose prose-invert max-w-none prose-h2:text-rh-accent prose-h2:border-b prose-h2:border-rh-light-gray prose-h2:pb-2 prose-strong:text-rh-red prose-a:text-rh-accent hover:prose-a:text-rh-red">
         <h1 className="text-4xl font-extrabold text-white mb-4">{topic.title}</h1>
@@ -22,24 +40,22 @@ export const ContentView: React.FC<ContentViewProps> = ({ topic, onSelectTopic, 
         {topic.objectiveMapping && (
             <>
                 <h2 className="mt-8">Objective Mapping</h2>
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-rh-light-gray bg-rh-medium-gray rounded-lg">
-                        <thead className="bg-rh-light-gray">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Official Objective Category</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Covered in Curriculum Module(s)</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-rh-light-gray">
-                            {topic.objectiveMapping.map((item, index) => (
-                                <tr key={index} className="hover:bg-rh-light-gray/50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-rh-text">{item.category}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-rh-text">{item.module}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <InteractiveTable
+                    headers={["Official Objective Category", "Covered in Curriculum Module(s)", "Interactive Task"]}
+                    rows={topic.objectiveMapping.map(item => [
+                        item.category,
+                        item.module,
+                        <button 
+                            onClick={() => handleIterateClick(item)}
+                            className="flex items-center gap-2 text-rh-accent hover:text-rh-red transition-colors"
+                            title={`Generate practice tasks for: ${item.category}`}
+                            >
+                            <TargetIcon />
+                            <span>Iterate</span>
+                        </button>
+                    ])}
+                    fileName={`${topic.title}-objectives.csv`}
+                />
             </>
         )}
       </div>

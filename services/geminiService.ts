@@ -9,6 +9,17 @@ if (!API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 
+const technicalWriterSystemInstruction = `You are an expert system administrator and technical writer creating a professional, practical knowledge base. Your output must strictly adhere to the following Markdown conventions:
+
+1.  **Persona:** Act as a knowledgeable expert providing structured, practical advice and quick reference material. Focus on clarity, directness, and utility for quick comprehension.
+2.  **Conciseness:** Keep explanations brief and to the point. Use direct sentences and bullet points over lengthy paragraphs.
+3.  **Callout Blocks:** Use callout blocks to categorize information, in the format \`> [!type]- **Title**\`. Supported types are: note, tip, info, example, warning.
+4.  **Code Blocks:** Use Markdown code blocks with language specification (e.g., \`\`\`bash, \`\`\`ini).
+5.  **Tables:** Use Markdown tables for structured or comparative data.
+6.  **Emphasis:** Use bold text (\`**text**\`) for key terms, command flags, or important takeaways.
+7.  **Headers:** Organize content with clear, hierarchical Markdown headers (#, ##, ###).
+8.  **Practicality:** Always provide concrete command examples or practical scenarios.`;
+
 class GeminiService {
   startChat(systemInstruction: string): Chat {
     return ai.chats.create({
@@ -115,20 +126,22 @@ class GeminiService {
     moduleContent: string,
     action: 'explain' | 'brainstorm'
   ): Promise<string> {
-    const systemInstruction = 'You are an expert AI tutor for Red Hat technologies. Your responses should be formatted in Markdown. Be concise, clear, and helpful.';
+    
     const context = `CONTEXT: Module Title: "${moduleTitle}". Raw Module Content: "${JSON.stringify(moduleContent)}"`;
     let prompt = '';
+    let model = 'gemini-2.5-flash';
 
     if (action === 'explain') {
-      prompt = `Explain the core concepts of this module in a simple, easy-to-understand way for a beginner. ${context}`;
+      prompt = `Explain the core concepts of this module. Use callouts like [!info] for background and [!example] for commands. ${context}`;
+      model = 'gemini-2.5-pro'; // Use Pro for more complex explanation
     } else { // brainstorm
-      prompt = `Brainstorm a list of 3-5 best practices or key tips related to the topics in this module. Return the list in Markdown format. ${context}`;
+      prompt = `Brainstorm a list of 3-5 best practices or key tips for this module. Present them using [!tip] or [!warning] callouts. ${context}`;
     }
     
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model,
       contents: prompt,
-      config: { systemInstruction },
+      config: { systemInstruction: technicalWriterSystemInstruction },
     });
     return response.text;
   }
@@ -165,6 +178,33 @@ class GeminiService {
       console.error("Failed to parse Gemini response for study tasks:", e);
       return [{title: "Error parsing response", description: "Could not generate tasks from AI."}];
     }
+  }
+
+  async generateObjectiveTasks(objective: string, moduleTitle: string, moduleContent: string): Promise<string> {
+    const prompt = `You are an AI Tutor. Your task is to help a student master a specific learning objective from a curriculum.
+    
+Learning Objective: "${objective}"
+From Module: "${moduleTitle}"
+
+Based on the objective and the provided module content, generate a helpful response that includes a mix of the following:
+- A concise explanation of the key concepts related to the objective.
+- 2-3 practical, hands-on tasks or command examples a student can try.
+- 1-2 critical thinking questions to test their understanding.
+
+Use the following module content as your primary context:
+---
+${moduleContent}
+---
+`;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: prompt,
+        config: {
+            systemInstruction: technicalWriterSystemInstruction,
+        },
+    });
+    return response.text;
   }
 
   async generateModuleFromContext(prompt: string, context: string): Promise<string> {

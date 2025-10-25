@@ -6,6 +6,7 @@ import { ChatWidget } from './components/ChatWidget';
 import { VideoAnalyzer } from './components/VideoAnalyzer';
 import { KanbanBoard } from './components/KanbanBoard';
 import { KnowledgeStore } from './components/KnowledgeStore';
+import { ObjectiveAssistantModal } from './components/ObjectiveAssistantModal';
 import { Curriculum, curriculumData } from './data/curriculumData';
 import { BrainIcon, VideoIcon, BookOpenIcon, ColumnsIcon, DatabaseIcon } from './components/icons/Icons';
 import { CurriculumPart, CurriculumTopic, BoardState, KanbanTask, TaskStatus } from './types';
@@ -45,6 +46,7 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>('curriculum');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [board, setBoard] = useState<BoardState>(initialBoardState);
+  const [objectiveModalState, setObjectiveModalState] = useState<{ isOpen: boolean; data: { category: string; moduleTitle: string; moduleContent: any; } | null }>({ isOpen: false, data: null });
 
 
   useEffect(() => {
@@ -181,6 +183,14 @@ const App: React.FC = () => {
     }));
     setActiveView('kanban');
   };
+  
+  const handleOpenObjectiveModal = (data: { category: string; moduleTitle: string; moduleContent: any; }) => {
+    setObjectiveModalState({ isOpen: true, data });
+  };
+
+  const handleCloseObjectiveModal = () => {
+    setObjectiveModalState({ isOpen: false, data: null });
+  };
 
 
   const renderView = () => {
@@ -200,7 +210,12 @@ const App: React.FC = () => {
         return <KnowledgeStore />;
       case 'curriculum':
       default:
-        return <ContentView topic={selectedTopic} onSelectTopic={handleSelectTopic} onAddTaskToBoard={handleAddTaskFromAssistant} />;
+        return <ContentView 
+                  topic={selectedTopic} 
+                  onSelectTopic={handleSelectTopic} 
+                  onAddTaskToBoard={handleAddTaskFromAssistant}
+                  onOpenObjectiveModal={handleOpenObjectiveModal} 
+                />;
     }
   };
 
@@ -243,6 +258,11 @@ const App: React.FC = () => {
         </div>
       </main>
       <ChatWidget curriculum={curriculumData as Curriculum[]} />
+      <ObjectiveAssistantModal 
+        isOpen={objectiveModalState.isOpen}
+        onClose={handleCloseObjectiveModal}
+        data={objectiveModalState.data}
+      />
     </div>
   );
 };
