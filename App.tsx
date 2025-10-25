@@ -5,16 +5,47 @@ import { ContentView } from './components/ContentView';
 import { ChatWidget } from './components/ChatWidget';
 import { VideoAnalyzer } from './components/VideoAnalyzer';
 import { KanbanBoard } from './components/KanbanBoard';
+import { KnowledgeStore } from './components/KnowledgeStore';
 import { Curriculum, curriculumData } from './data/curriculumData';
-import { BrainIcon, VideoIcon, BookOpenIcon, ColumnsIcon } from './components/icons/Icons';
-import { CurriculumPart, CurriculumTopic } from './types';
+import { BrainIcon, VideoIcon, BookOpenIcon, ColumnsIcon, DatabaseIcon } from './components/icons/Icons';
+import { CurriculumPart, CurriculumTopic, BoardState, KanbanTask, TaskStatus } from './types';
 
-export type View = 'curriculum' | 'video-analyzer' | 'kanban';
+export type View = 'curriculum' | 'video-analyzer' | 'kanban' | 'knowledge-store';
+
+const STICKY_COLORS_HEX = ['#FEF9C3', '#D1FAE5', '#DBEAFE', '#FCE7F3', '#F3E8FF', '#FFEDD5'];
+
+const initialBoardState: BoardState = {
+  todo: {
+    id: 'todo',
+    title: 'To Do',
+    tasks: [
+      { id: '1', title: 'Set up project repository', description: 'Initialize git repo and push to GitHub.', status: 'todo', tags: ['setup', 'git'], color: STICKY_COLORS_HEX[0] },
+      { id: '2', title: 'Develop initial UI mockups', description: 'Create wireframes for the main views of the application.', status: 'todo', tags: ['design', 'ui'], color: STICKY_COLORS_HEX[1] },
+    ],
+  },
+  inprogress: {
+    id: 'inprogress',
+    title: 'In Progress',
+    tasks: [
+      { id: '3', title: 'Implement sidebar navigation', description: 'Build the collapsible sidebar component.', status: 'inprogress', tags: ['feature', 'react'], color: STICKY_COLORS_HEX[2] },
+    ],
+  },
+  done: {
+    id: 'done',
+    title: 'Done',
+    tasks: [
+        { id: '4', title: 'Configure Tailwind CSS', description: 'Set up custom theme colors and fonts.', status: 'done', tags: ['setup', 'css'], color: STICKY_COLORS_HEX[3] },
+    ],
+  },
+};
+
 
 const App: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState<any>(curriculumData[0]);
   const [activeView, setActiveView] = useState<View>('curriculum');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [board, setBoard] = useState<BoardState>(initialBoardState);
+
 
   useEffect(() => {
     // Fix: Cast window to any to access hljs property which is loaded via script tag.
@@ -43,16 +74,133 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddTask = (status: TaskStatus) => {
+    const title = prompt("Enter task title:");
+    if (title) {
+      const newTask: KanbanTask = {
+        id: Date.now().toString(),
+        title,
+        description: '',
+        status,
+        tags: [],
+        color: STICKY_COLORS_HEX[Math.floor(Math.random() * STICKY_COLORS_HEX.length)],
+      };
+      setBoard(prevBoard => ({
+        ...prevBoard,
+        [status]: {
+          ...prevBoard[status],
+          tasks: [...prevBoard[status].tasks, newTask],
+        },
+      }));
+    }
+  };
+
+  const handleUpdateTask = (updatedTask: KanbanTask) => {
+    setBoard(prevBoard => {
+        const newBoard = { ...prevBoard };
+        let oldStatus: TaskStatus | undefined;
+
+        // Find and remove the task from its original column
+        for (const statusKey of Object.keys(newBoard) as TaskStatus[]) {
+            const taskIndex = newBoard[statusKey].tasks.findIndex(t => t.id === updatedTask.id);
+            if (taskIndex !== -1) {
+                oldStatus = statusKey;
+                newBoard[statusKey].tasks.splice(taskIndex, 1);
+                break;
+            }
+        }
+
+        // Add the updated task to its new column
+        if (newBoard[updatedTask.status]) {
+            newBoard[updatedTask.status].tasks.push(updatedTask);
+        }
+
+        return newBoard;
+    });
+  };
+  
+  const handleDeleteTask = (taskId: string) => {
+      if (window.confirm("Are you sure you want to delete this task?")) {
+          setBoard(prevBoard => {
+            const newState = (Object.keys(prevBoard) as TaskStatus[]).reduce((acc, status) => {
+              acc[status] = {
+                ...prevBoard[status],
+                tasks: prevBoard[status].tasks.filter(task => task.id !== taskId),
+              };
+              return acc;
+            }, {} as BoardState);
+            return newState;
+          });
+      }
+  };
+
+  const handleDrop = (taskId: string, newStatus: TaskStatus) => {
+    let taskToMove: KanbanTask | undefined;
+    let oldStatus: TaskStatus | undefined;
+
+    for (const statusKey in board) {
+        const status = statusKey as TaskStatus;
+        const foundTask = board[status].tasks.find(t => t.id === taskId);
+        if (foundTask) {
+            taskToMove = { ...foundTask, status: newStatus };
+            oldStatus = status;
+            break;
+        }
+    }
+
+    if (taskToMove && oldStatus && oldStatus !== newStatus) {
+        setBoard(prevBoard => ({
+          ...prevBoard,
+          [oldStatus as TaskStatus]: {
+            ...prevBoard[oldStatus as TaskStatus],
+            tasks: prevBoard[oldStatus as TaskStatus].tasks.filter(t => t.id !== taskId),
+          },
+          [newStatus]: {
+            ...prevBoard[newStatus],
+            tasks: [...prevBoard[newStatus].tasks, taskToMove!],
+          }
+      }));
+    }
+  };
+  
+  const handleAddTaskFromAssistant = (task: { title: string; description: string }) => {
+    const newTask: KanbanTask = {
+      id: Date.now().toString(),
+      title: task.title,
+      description: task.description,
+      status: 'todo',
+      tags: ['ai-generated', selectedTopic?.title],
+      color: STICKY_COLORS_HEX[Math.floor(Math.random() * STICKY_COLORS_HEX.length)],
+    };
+    setBoard(prevBoard => ({
+      ...prevBoard,
+      todo: {
+        ...prevBoard.todo,
+        tasks: [...prevBoard.todo.tasks, newTask],
+      },
+    }));
+    setActiveView('kanban');
+  };
+
 
   const renderView = () => {
     switch(activeView) {
       case 'video-analyzer':
         return <VideoAnalyzer />;
       case 'kanban':
-        return <KanbanBoard />;
+        return <KanbanBoard 
+          board={board}
+          setBoard={setBoard}
+          onDrop={handleDrop}
+          onAddTask={handleAddTask}
+          onUpdateTask={handleUpdateTask}
+          onDeleteTask={handleDeleteTask}
+        />;
+      case 'knowledge-store':
+        return <KnowledgeStore />;
       case 'curriculum':
       default:
-        return <ContentView topic={selectedTopic} onSelectTopic={handleSelectTopic} />;
+        return <ContentView topic={selectedTopic} onSelectTopic={handleSelectTopic} onAddTaskToBoard={handleAddTaskFromAssistant} />;
     }
   };
 
@@ -84,6 +232,10 @@ const App: React.FC = () => {
                   <button onClick={() => setActiveView('kanban')} className={`flex items-center space-x-2 px-3 py-2 rounded-md ${activeView === 'kanban' ? 'bg-rh-red text-white' : 'bg-rh-light-gray hover:bg-rh-red/80'}`}>
                     <ColumnsIcon />
                     <span>Kanban Board</span>
+                  </button>
+                  <button onClick={() => setActiveView('knowledge-store')} className={`flex items-center space-x-2 px-3 py-2 rounded-md ${activeView === 'knowledge-store' ? 'bg-rh-red text-white' : 'bg-rh-light-gray hover:bg-rh-red/80'}`}>
+                    <DatabaseIcon />
+                    <span>Knowledge Store</span>
                   </button>
                 </nav>
             </header>

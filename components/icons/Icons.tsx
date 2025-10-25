@@ -29,6 +29,10 @@ export const ColumnsIcon = () => <Icon><rect x="3" y="3" width="18" height="18" 
 export const ChevronRightIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => <Icon {...props}><path d="m9 18 6-6-6-6" /></Icon>;
 export const PencilIcon = () => <Icon width="16" height="16"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></Icon>;
 export const TrashIcon = () => <Icon width="16" height="16"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6m4-6v6" /></Icon>;
+export const DatabaseIcon = () => <Icon><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></Icon>;
+export const UploadIcon = () => <Icon><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></Icon>;
+export const LightbulbIcon = () => <Icon><path d="M15.09 16.5c.34-.59.51-1.26.51-1.97C15.6 12.03 14 11 12 11s-3.6 1.03-3.6 3.53c0 .71.17 1.38.51 1.97" /><path d="M12 2a7 7 0 0 0-7 7c0 2.35 1.25 4.37 3.09 5.5" /><path d="M8.5 17a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.5v1Z" /><path d="M12 21.5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5Z" /></Icon>;
+export const CheckSquareIcon = () => <Icon><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></Icon>;
 export const LoadingSpinner = () => (
     <div className="flex items-center space-x-2">
       <div className="w-2 h-2 rounded-full bg-rh-accent animate-pulse"></div>

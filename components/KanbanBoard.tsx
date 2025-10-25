@@ -7,114 +7,18 @@ import { BrainIcon, LoadingSpinner } from './icons/Icons';
 
 const STICKY_COLORS_HEX = ['#FEF9C3', '#D1FAE5', '#DBEAFE', '#FCE7F3', '#F3E8FF', '#FFEDD5'];
 
-const initialBoardState: BoardState = {
-  todo: {
-    id: 'todo',
-    title: 'To Do',
-    tasks: [
-      { id: '1', title: 'Set up project repository', description: 'Initialize git repo and push to GitHub.', status: 'todo', tags: ['setup', 'git'], color: STICKY_COLORS_HEX[0] },
-      { id: '2', title: 'Develop initial UI mockups', description: 'Create wireframes for the main views of the application.', status: 'todo', tags: ['design', 'ui'], color: STICKY_COLORS_HEX[1] },
-    ],
-  },
-  inprogress: {
-    id: 'inprogress',
-    title: 'In Progress',
-    tasks: [
-      { id: '3', title: 'Implement sidebar navigation', description: 'Build the collapsible sidebar component.', status: 'inprogress', tags: ['feature', 'react'], color: STICKY_COLORS_HEX[2] },
-    ],
-  },
-  done: {
-    id: 'done',
-    title: 'Done',
-    tasks: [
-        { id: '4', title: 'Configure Tailwind CSS', description: 'Set up custom theme colors and fonts.', status: 'done', tags: ['setup', 'css'], color: STICKY_COLORS_HEX[3] },
-    ],
-  },
-};
+interface KanbanBoardProps {
+  board: BoardState;
+  setBoard: React.Dispatch<React.SetStateAction<BoardState>>;
+  onDrop: (taskId: string, newStatus: TaskStatus) => void;
+  onAddTask: (status: TaskStatus) => void;
+  onUpdateTask: (task: KanbanTask) => void;
+  onDeleteTask: (taskId: string) => void;
+}
 
-export const KanbanBoard: React.FC = () => {
-  const [board, setBoard] = useState<BoardState>(initialBoardState);
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({ board, setBoard, onDrop, onAddTask, onUpdateTask, onDeleteTask }) => {
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-
-  const handleAddTask = (status: TaskStatus) => {
-    const title = prompt("Enter task title:");
-    if (title) {
-      const newTask: KanbanTask = {
-        id: Date.now().toString(),
-        title,
-        description: '',
-        status,
-        tags: [],
-        color: STICKY_COLORS_HEX[Math.floor(Math.random() * STICKY_COLORS_HEX.length)],
-      };
-      setBoard(prevBoard => ({
-        ...prevBoard,
-        [status]: {
-          ...prevBoard[status],
-          tasks: [...prevBoard[status].tasks, newTask],
-        },
-      }));
-    }
-  };
-
-  const handleUpdateTask = (updatedTask: KanbanTask) => {
-    const status = updatedTask.status;
-    setBoard(prevBoard => ({
-      ...prevBoard,
-      [status]: {
-        ...prevBoard[status],
-        tasks: prevBoard[status].tasks.map(task =>
-          task.id === updatedTask.id ? updatedTask : task
-        ),
-      },
-    }));
-  };
-  
-  const handleDeleteTask = (taskId: string) => {
-      if (window.confirm("Are you sure you want to delete this task?")) {
-          setBoard(prevBoard => {
-            const newState = (Object.keys(prevBoard) as TaskStatus[]).reduce((acc, status) => {
-              acc[status] = {
-                ...prevBoard[status],
-                tasks: prevBoard[status].tasks.filter(task => task.id !== taskId),
-              };
-              return acc;
-            }, {} as BoardState);
-            return newState;
-          });
-      }
-  };
-
-
-  const handleDrop = (taskId: string, newStatus: TaskStatus) => {
-    let taskToMove: KanbanTask | undefined;
-    let oldStatus: TaskStatus | undefined;
-
-    for (const statusKey in board) {
-        const status = statusKey as TaskStatus;
-        const foundTask = board[status].tasks.find(t => t.id === taskId);
-        if (foundTask) {
-            taskToMove = { ...foundTask, status: newStatus };
-            oldStatus = status;
-            break;
-        }
-    }
-
-    if (taskToMove && oldStatus && oldStatus !== newStatus) {
-        setBoard(prevBoard => ({
-          ...prevBoard,
-          [oldStatus as TaskStatus]: {
-            ...prevBoard[oldStatus as TaskStatus],
-            tasks: prevBoard[oldStatus as TaskStatus].tasks.filter(t => t.id !== taskId),
-          },
-          [newStatus]: {
-            ...prevBoard[newStatus],
-            tasks: [...prevBoard[newStatus].tasks, taskToMove!],
-          }
-      }));
-    }
-  };
   
   const handleGenerateTasks = async () => {
     if (!aiPrompt.trim()) return;
@@ -174,10 +78,10 @@ export const KanbanBoard: React.FC = () => {
                 <KanbanColumn
                     key={status}
                     column={board[status]}
-                    onDrop={handleDrop}
-                    onAddTask={() => handleAddTask(status)}
-                    onUpdateTask={handleUpdateTask}
-                    onDeleteTask={handleDeleteTask}
+                    onDrop={onDrop}
+                    onAddTask={() => onAddTask(status)}
+                    onUpdateTask={onUpdateTask}
+                    onDeleteTask={onDeleteTask}
                 />
             ))}
         </div>
