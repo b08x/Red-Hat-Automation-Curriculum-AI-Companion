@@ -1,0 +1,7 @@
+{
+  "name": "Red Hat Automation Curriculum AI Companion",
+  "description": "An interactive web application that presents the Red Hat Enterprise Linux Automation Mastery curriculum, enhanced with a suite of Gemini-powered AI tools for conversational learning, complex problem-solving, and real-time assistance.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
