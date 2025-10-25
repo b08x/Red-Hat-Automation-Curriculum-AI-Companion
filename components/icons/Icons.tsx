@@ -42,6 +42,7 @@ export const ChevronDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) 
 export const CodeIcon = () => <Icon><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></Icon>;
 export const BugIcon = () => <Icon><path d="M20 9V7a2 2 0 0 0-2-2h-3.34a4 4 0 0 0-7.32 0H4a2 2 0 0 0-2 2v2" /><path d="m20 9 .75 1.5a2.5 2.5 0 0 1-4.5 2.5H8a2.5 2.5 0 0 1-4.5-2.5L4 9" /><path d="M12 22V13" /><path d="M16 17.5 12 13l-4 4.5" /></Icon>;
 
+
 export const LoadingSpinner = () => (
     <div className="flex items-center space-x-2">
       <div className="w-2 h-2 rounded-full bg-rh-accent animate-pulse"></div>
