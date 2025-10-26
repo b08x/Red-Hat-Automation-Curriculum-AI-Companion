@@ -10,6 +10,19 @@ import { geminiService } from '../services/geminiService';
 import { encode, decode, decodeAudioData } from '../utils/audioUtils';
 import { BrainIcon, SearchIcon, MicIcon, SendIcon, ChatIcon, CloseIcon, LoadingSpinner, StopIcon, CodeIcon, BugIcon } from './icons/Icons';
 
+// Fix for SpeechRecognition type not found. The Web Speech API is experimental and its types are not always available by default.
+interface SpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onend: (() => void) | null;
+  onerror: ((event: any) => void) | null;
+  onresult: ((event: any) => void) | null;
+  onstart: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
 interface ChatWidgetProps {
   curriculum: Curriculum[];
 }
@@ -33,6 +46,9 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
   const audioSources = useRef(new Set<AudioBufferSourceNode>());
   const liveTranscription = useRef<{input: string, output: string}>({input: '', output: ''});
 
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
   const chat = useRef<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -54,6 +70,40 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
         });
     }
   }, [messages]);
+  
+  useEffect(() => {
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+      console.warn("Speech recognition is not supported in this browser.");
+      return;
+    }
+
+    const recognition: SpeechRecognition = new SpeechRecognitionAPI();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsRecording(false);
+      setMessages(prev => [...prev, { sender: 'bot', text: `Sorry, there was a speech recognition error: ${event.error}` }]);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(prev => (prev ? prev + ' ' : '') + transcript);
+    };
+    
+    recognitionRef.current = recognition;
+  }, []);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -85,6 +135,15 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
       setMessages(prev => [...prev, { sender: 'bot', text: 'Sorry, I encountered an error. Please try again.' }]);
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const handleToggleVoiceInput = () => {
+    if (!recognitionRef.current) return;
+    if (isRecording) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
     }
   };
 
@@ -273,11 +332,19 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder={isLive ? "Live tutor is active..." : "Ask a question..."}
+            placeholder={isRecording ? "Listening..." : isLive ? "Live tutor is active..." : "Ask a question..."}
             className="flex-1 bg-transparent p-3 text-rh-text focus:outline-none"
-            disabled={isLoading || isLive}
+            disabled={isLoading || isLive || isRecording}
           />
-          <button onClick={sendMessage} disabled={isLoading || isLive} className="p-3 text-white disabled:text-gray-500">
+          <button 
+            onClick={handleToggleVoiceInput} 
+            disabled={isLoading || isLive || !recognitionRef.current}
+            className="p-3 text-white disabled:text-gray-500 hover:text-rh-accent transition-colors"
+            title={isRecording ? "Stop recording" : "Record voice message"}
+          >
+            {isRecording ? <StopIcon className="text-rh-red" /> : <MicIcon />}
+          </button>
+          <button onClick={sendMessage} disabled={isLoading || isLive || isRecording} className="p-3 text-white disabled:text-gray-500">
             <SendIcon />
           </button>
         </div>
