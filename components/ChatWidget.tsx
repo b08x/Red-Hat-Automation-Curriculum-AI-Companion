@@ -1,16 +1,14 @@
-
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality, Blob, Chat } from '@google/genai';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-// Fix: Import Curriculum from '../data/curriculumData' instead of '../types'
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useGenerativeAi } from '@google-ai/react';
+import { GenerativeChat, Messages, ChatInput, Message, type Chat as GenerativeChatType } from '@google-ai/generative-chat';
+import { LiveServerMessage, Blob, StartChatParams } from '@google/genai';
 import type { ChatMessage } from '../types';
 import type { Curriculum } from '../data/curriculumData';
 import { geminiService } from '../services/geminiService';
 import { encode, decode, decodeAudioData } from '../utils/audioUtils';
-import { BrainIcon, SearchIcon, MicIcon, SendIcon, ChatIcon, CloseIcon, LoadingSpinner, StopIcon, CodeIcon, BugIcon } from './icons/Icons';
+import { BrainIcon, SearchIcon, MicIcon, ChatIcon, CloseIcon, LoadingSpinner, StopIcon, CodeIcon, BugIcon } from './icons/Icons';
 
-// Fix for SpeechRecognition type not found. The Web Speech API is experimental and its types are not always available by default.
+// Fix for SpeechRecognition type not found.
 interface SpeechRecognition {
   continuous: boolean;
   interimResults: boolean;
@@ -29,14 +27,30 @@ interface ChatWidgetProps {
 
 type ChatMode = 'chat' | 'thinking' | 'grounded' | 'live' | 'code' | 'debug';
 
+const UserMessage = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex justify-end">
+        <div className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-lg bg-rh-accent text-white">
+            {children}
+        </div>
+    </div>
+);
+
+const ModelMessage = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex justify-start">
+        <div className="prose prose-invert max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-lg bg-rh-light-gray text-rh-text prose-pre:bg-rh-dark-gray">
+            {children}
+        </div>
+    </div>
+);
+
 export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<ChatMode>('chat');
+  const [chatInput, setChatInput] = useState('');
   
+  // State for live tutor
   const [isLive, setIsLive] = useState(false);
+  const [liveMessages, setLiveMessages] = useState<ChatMessage[]>([]);
   const liveSession = useRef<any>(null);
   const inputAudioContext = useRef<AudioContext | null>(null);
   const outputAudioContext = useRef<AudioContext | null>(null);
@@ -46,30 +60,46 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
   const audioSources = useRef(new Set<AudioBufferSourceNode>());
   const liveTranscription = useRef<{input: string, output: string}>({input: '', output: ''});
 
+  // State for speech recognition
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-
-  const chat = useRef<Chat | null>(null);
+  
+  const { startChat } = useGenerativeAi();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isOpen && !chat.current) {
-      const curriculumContext = curriculum.map(p => `Part: ${p.title}. ${p.description}`).join('\n');
-      const systemInstruction = `You are an expert AI tutor specializing in the Red Hat Enterprise Linux Automation Mastery curriculum. Your goal is to help users understand the concepts. Be helpful, encouraging, and provide clear explanations. The curriculum context is: ${curriculumContext}`;
-      chat.current = geminiService.startChat(systemInstruction);
-      setMessages([{ sender: 'bot', text: 'Hello! How can I help you with the Red Hat curriculum today?' }]);
-    }
-  }, [isOpen, curriculum]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    if ((window as any).hljs && chatContainerRef.current) {
-        chatContainerRef.current.querySelectorAll('pre code').forEach((block) => {
-            (window as any).hljs.highlightElement(block);
-        });
+  }, [liveMessages]);
+  
+  const chat = useMemo(() => {
+    if (!isOpen || mode === 'live') {
+      return null;
     }
-  }, [messages]);
+
+    let params: StartChatParams = { model: 'gemini-2.5-flash' };
+    switch (mode) {
+      case 'chat':
+        const curriculumContext = curriculum.map(p => `Part: ${p.title}. ${p.description}`).join('\n');
+        params.config = { systemInstruction: `You are an expert AI tutor specializing in the Red Hat Enterprise Linux Automation Mastery curriculum. Your goal is to help users understand the concepts. Be helpful, encouraging, and provide clear explanations. The curriculum context is: ${curriculumContext}` };
+        break;
+      case 'thinking':
+        params.model = 'gemini-2.5-pro';
+        params.config = { systemInstruction: `You are a powerful AI assistant designed for complex problem-solving. Think step-by-step to provide a detailed, accurate response.`, thinkingConfig: { thinkingBudget: 32768 } };
+        break;
+      case 'grounded':
+        params.config = { tools: [{ googleSearch: {} }] };
+        break;
+      case 'code':
+        params.model = 'gemini-2.5-pro';
+        params.config = { systemInstruction: `You are an expert code generation assistant. Your primary goal is to provide clean, efficient, and well-commented code based on the user's request. Always wrap code in appropriate Markdown code blocks with the language specified (e.g., \`\`\`python). Provide a brief explanation of how the code works.` };
+        break;
+      case 'debug':
+        params.model = 'gemini-2.5-pro';
+        params.config = { systemInstruction: `You are an expert debugging assistant. A user will provide you with a code snippet and a description of a problem. Your task is to identify the bug or error, explain the root cause, provide a corrected version of the code, and suggest best practices.` };
+        break;
+    }
+    return startChat(params);
+  }, [isOpen, mode, startChat, curriculum]);
   
   useEffect(() => {
     const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -77,67 +107,23 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
       console.warn("Speech recognition is not supported in this browser.");
       return;
     }
-
     const recognition: SpeechRecognition = new SpeechRecognitionAPI();
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.lang = 'en-US';
-
-    recognition.onstart = () => {
-      setIsRecording(true);
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
-
+    recognition.onstart = () => setIsRecording(true);
+    recognition.onend = () => setIsRecording(false);
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
       setIsRecording(false);
-      setMessages(prev => [...prev, { sender: 'bot', text: `Sorry, there was a speech recognition error: ${event.error}` }]);
     };
-
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
-      setInput(prev => (prev ? prev + ' ' : '') + transcript);
+      setChatInput(prev => (prev ? prev + ' ' : '') + transcript);
     };
-    
     recognitionRef.current = recognition;
   }, []);
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
-    const userMessage: ChatMessage = { sender: 'user', text: input };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      let responseText = '';
-      let sources: any[] = [];
-      if (mode === 'thinking') {
-        responseText = await geminiService.askWithThinking(input);
-      } else if (mode === 'grounded') {
-        const result = await geminiService.askWithGrounding(input);
-        responseText = result.text;
-        sources = result.sources;
-      } else if (mode === 'code') {
-        responseText = await geminiService.generateCode(input);
-      } else if (mode === 'debug') {
-        responseText = await geminiService.debugCode(input);
-      } else {
-        if (!chat.current) throw new Error("Chat not initialized");
-        responseText = await geminiService.getChatResponse(chat.current, input);
-      }
-      setMessages(prev => [...prev, { sender: 'bot', text: responseText, sources: sources }]);
-    } catch (error) {
-      console.error('Error sending message:', error);
-      setMessages(prev => [...prev, { sender: 'bot', text: 'Sorry, I encountered an error. Please try again.' }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
   const handleToggleVoiceInput = () => {
     if (!recognitionRef.current) return;
     if (isRecording) {
@@ -150,7 +136,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
   const startLiveTutor = useCallback(async () => {
     if (isLive) return;
     setIsLive(true);
-    setMessages(prev => [...prev, {sender: 'bot', text: 'Live Tutor activated. I am listening...'}]);
+    setLiveMessages([{sender: 'bot', text: 'Live Tutor activated. I am listening...'}]);
 
     inputAudioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
     outputAudioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -173,35 +159,31 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
             }
 
             if (message.serverContent?.interrupted) {
-                for (const source of audioSources.current.values()) {
-                    source.stop();
-                    audioSources.current.delete(source);
-                }
+                for (const source of audioSources.current.values()) { source.stop(); audioSources.current.delete(source); }
                 nextStartTime.current = 0;
             }
 
-            if (message.serverContent?.inputTranscription) {
-              liveTranscription.current.input += message.serverContent.inputTranscription.text;
-            }
-            if (message.serverContent?.outputTranscription) {
-              liveTranscription.current.output += message.serverContent.outputTranscription.text;
-            }
+            if (message.serverContent?.inputTranscription) liveTranscription.current.input += message.serverContent.inputTranscription.text;
+            if (message.serverContent?.outputTranscription) liveTranscription.current.output += message.serverContent.outputTranscription.text;
+            
             if(message.serverContent?.turnComplete) {
               const fullInput = liveTranscription.current.input;
               const fullOutput = liveTranscription.current.output;
-              if (fullInput.trim()) setMessages(prev => [...prev, { sender: 'user', text: `(Audio) ${fullInput}` }]);
-              if (fullOutput.trim()) setMessages(prev => [...prev, { sender: 'bot', text: `(Audio) ${fullOutput}` }]);
+              setLiveMessages(prev => {
+                const newMessages: ChatMessage[] = [...prev];
+                if (fullInput.trim()) newMessages.push({ sender: 'user', text: `(Audio) ${fullInput}` });
+                if (fullOutput.trim()) newMessages.push({ sender: 'bot', text: `(Audio) ${fullOutput}` });
+                return newMessages;
+              });
               liveTranscription.current = {input: '', output: ''};
             }
         },
         onerror: (e: ErrorEvent) => {
             console.error("Live session error:", e);
-            setMessages(prev => [...prev, { sender: 'bot', text: "Live session error. Please try again." }]);
+            setLiveMessages(prev => [...prev, { sender: 'bot', text: "Live session error. Please try again." }]);
             stopLiveTutor();
         },
-        onclose: () => {
-            console.log("Live session closed.");
-        },
+        onclose: () => console.log("Live session closed."),
     });
 
     liveSession.current = await sessionPromise;
@@ -222,32 +204,30 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
     setIsLive(false);
     liveSession.current?.close();
     liveSession.current = null;
-    
     scriptProcessor.current?.disconnect();
     scriptProcessor.current = null;
-    
     mediaStream.current?.getTracks().forEach(track => track.stop());
     mediaStream.current = null;
-    
     inputAudioContext.current?.close();
     outputAudioContext.current?.close();
-    inputAudioContext.current = null;
-    outputAudioContext.current = null;
-    setMessages(prev => [...prev, {sender: 'bot', text: 'Live Tutor deactivated.'}]);
+    setLiveMessages(prev => [...prev, {sender: 'bot', text: 'Live Tutor deactivated.'}]);
   }, [isLive]);
   
-  const toggleLiveTutor = () => {
-    if(isLive) stopLiveTutor(); else startLiveTutor();
+  const handleModeChange = (newMode: ChatMode) => {
+    if (newMode === 'live') {
+      if (isLive) stopLiveTutor(); else startLiveTutor();
+    } else {
+      if (isLive) stopLiveTutor();
+    }
+    setMode(newMode);
   }
 
-  const handleModeChange = (newMode: ChatMode) => {
-    setMode(newMode);
-    if(newMode === 'live') {
-      toggleLiveTutor();
-    } else if (isLive) {
-      stopLiveTutor();
+  const handleSubmit = (value: string) => {
+    if (chat) {
+      chat.sendMessage(value);
+      setChatInput('');
     }
-  }
+  };
 
   const modeInfo = {
     chat: { text: "Standard chat with curriculum context.", icon: <ChatIcon />},
@@ -286,69 +266,45 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ curriculum }) => {
           <p className="text-xs text-gray-400 mt-1.5">{modeInfo[mode].text}</p>
       </div>
 
-      <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4">
-        {messages.map((msg, index) => (
-          <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-lg ${msg.sender === 'user' ? 'bg-rh-accent text-white' : 'bg-rh-light-gray text-rh-text'}`}>
-              {msg.sender === 'bot' ? (
-                 <ReactMarkdown
-                    children={msg.text}
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                        p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                        pre: ({node, ...props}) => <pre className="bg-rh-dark-gray p-2 rounded my-2 overflow-x-auto text-sm" {...props} />,
-                        code: ({node, inline, className, children, ...props}) => {
-                            return <code className={`${className} rounded`} {...props}>{children}</code>
-                        },
-                        a: ({node, ...props}) => <a className="text-rh-accent hover:underline" {...props} />,
-                        ul: ({node, ...props}) => <ul className="list-disc list-inside my-2" {...props} />,
-                        ol: ({node, ...props}) => <ol className="list-decimal list-inside my-2" {...props} />,
-                    }}
-                />
-              ) : (
-                <p className="whitespace-pre-wrap">{msg.text}</p>
-              )}
-              {msg.sources && msg.sources.length > 0 && (
-                <div className="mt-2 border-t border-rh-medium-gray pt-2">
-                  <h4 className="text-xs font-bold mb-1">Sources:</h4>
-                  <ul className="text-xs space-y-1">
-                    {msg.sources.map((source, i) => (
-                      <li key={i}><a href={source.web.uri} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline break-all">{source.web.title}</a></li>
-                    ))}
-                  </ul>
+      {mode === 'live' ? (
+        <div className="flex-1 p-4 overflow-y-auto space-y-4">
+            {liveMessages.map((msg, index) => (
+                <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-lg ${msg.sender === 'user' ? 'bg-rh-accent text-white' : 'bg-rh-light-gray text-rh-text'}`}>
+                        <p className="whitespace-pre-wrap">{msg.text}</p>
+                    </div>
                 </div>
-              )}
-            </div>
-          </div>
-        ))}
-        {isLoading && <div className="flex justify-start"><LoadingSpinner /></div>}
-        <div ref={messagesEndRef} />
-      </div>
-
-      <div className="p-4 border-t border-rh-light-gray">
-        <div className="flex items-center bg-rh-light-gray rounded-lg">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder={isRecording ? "Listening..." : isLive ? "Live tutor is active..." : "Ask a question..."}
-            className="flex-1 bg-transparent p-3 text-rh-text focus:outline-none"
-            disabled={isLoading || isLive || isRecording}
-          />
-          <button 
-            onClick={handleToggleVoiceInput} 
-            disabled={isLoading || isLive || !recognitionRef.current}
-            className="p-3 text-white disabled:text-gray-500 hover:text-rh-accent transition-colors"
-            title={isRecording ? "Stop recording" : "Record voice message"}
-          >
-            {isRecording ? <StopIcon className="text-rh-red" /> : <MicIcon />}
-          </button>
-          <button onClick={sendMessage} disabled={isLoading || isLive || isRecording} className="p-3 text-white disabled:text-gray-500">
-            <SendIcon />
-          </button>
+            ))}
+            <div ref={messagesEndRef} />
         </div>
-      </div>
+      ) : chat ? (
+        <GenerativeChat chat={chat} className="flex-1 flex flex-col" onSubmit={handleSubmit}>
+            <Messages className="flex-1 p-4 overflow-y-auto space-y-4">
+                <Message sender="user" as={UserMessage} />
+                <Message sender="model" as={ModelMessage} />
+            </Messages>
+            <div className="p-4 border-t border-rh-light-gray">
+                <div className="flex items-center bg-rh-light-gray rounded-lg">
+                    <ChatInput 
+                        value={chatInput} 
+                        onChange={(e) => setChatInput(e.target.value)} 
+                        placeholder={isRecording ? "Listening..." : "Ask a question..."}
+                        className="flex-1 bg-transparent p-3 text-rh-text focus:outline-none"
+                    />
+                    <button 
+                        onClick={handleToggleVoiceInput} 
+                        disabled={isLive || !recognitionRef.current}
+                        className="p-3 text-white disabled:text-gray-500 hover:text-rh-accent transition-colors"
+                        title={isRecording ? "Stop recording" : "Record voice message"}
+                    >
+                        {isRecording ? <StopIcon className="text-rh-red" /> : <MicIcon />}
+                    </button>
+                </div>
+            </div>
+        </GenerativeChat>
+      ) : (
+        <div className="flex-1 flex items-center justify-center"><LoadingSpinner /></div>
+      )}
     </div>
   );
 };

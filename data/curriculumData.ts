@@ -1,7 +1,5 @@
-
 import React from 'react';
 import type { CurriculumPart } from '../types';
-import { InteractiveTable } from '../components/KanbanColumn';
 
 export type Curriculum = CurriculumPart;
 
@@ -195,7 +193,8 @@ export const curriculumData: Curriculum[] = [
         modules: [
             {
                 title: "Tooling Comparison",
-                content: React.createElement(InteractiveTable, {
+                content: {
+                  type: 'interactiveTable',
                   headers: ["Tool", "Primary Scope", "Operational Paradigm", "Core Use Case", "Analogy"],
                   rows: [
                       ["Ansible", "Multi-host Orchestration", "Declarative (Code)", "Automated provisioning & configuration", "The Architect's Blueprints"],
@@ -203,7 +202,7 @@ export const curriculumData: Curriculum[] = [
                       ["Foreman/Katello", "Fleet & Content Lifecycle", "Stateful (Database)", "Patch/errata management & compliance", "The Fleet Manager's Logistics System"],
                   ],
                   fileName: "tooling-comparison.csv"
-              })
+                }
             }
         ]
     }

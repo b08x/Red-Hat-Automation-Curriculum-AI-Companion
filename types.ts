@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 export interface RelatedTopicLink {
@@ -6,9 +5,16 @@ export interface RelatedTopicLink {
   topic: string;
 }
 
+export interface InteractiveTableContent {
+  type: 'interactiveTable';
+  headers: string[];
+  rows: (string | React.ReactNode)[][];
+  fileName: string;
+}
+
 export interface CurriculumTopic {
   title: string;
-  content: string | React.ReactNode;
+  content: string | React.ReactNode | InteractiveTableContent;
   related?: RelatedTopicLink[];
 }
 
@@ -42,7 +48,7 @@ export interface KanbanTask {
 
 export interface KanbanColumn {
   id: TaskStatus;
-  title: string;
+  title:string;
   tasks: KanbanTask[];
 }
 

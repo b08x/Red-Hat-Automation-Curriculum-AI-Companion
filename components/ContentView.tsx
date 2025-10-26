@@ -1,6 +1,5 @@
-
 import React from 'react';
-import type { CurriculumPart, CurriculumTopic, RelatedTopicLink } from '../types';
+import type { CurriculumPart, CurriculumTopic, RelatedTopicLink, InteractiveTableContent } from '../types';
 import { ModuleAssistant } from './ModuleAssistant';
 import { TargetIcon } from './icons/Icons';
 import { InteractiveTable } from './KanbanColumn';
@@ -67,7 +66,12 @@ export const ContentView: React.FC<ContentViewProps> = ({ topic, onSelectTopic, 
     <>
       <div className="prose prose-invert max-w-none prose-h1:text-rh-red prose-h2:text-rh-accent prose-h2:border-b prose-h2:border-rh-light-gray prose-h2:pb-2 prose-strong:text-white prose-a:text-rh-accent hover:prose-a:text-rh-red">
         <h1 className="text-4xl font-extrabold text-white mb-4">{topic.title}</h1>
-        <div>{topic.content}</div>
+        <div>
+          {topic.content && typeof topic.content === 'object' && 'type' in topic.content && (topic.content as InteractiveTableContent).type === 'interactiveTable'
+              ? <InteractiveTable {...topic.content as InteractiveTableContent} />
+              : topic.content as React.ReactNode
+          }
+        </div>
         {topic.related && topic.related.length > 0 && (
           <div className="mt-12 pt-6 border-t border-rh-light-gray">
             <h2 className="text-2xl font-bold text-rh-accent mb-4">Related Concepts</h2>
